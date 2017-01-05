@@ -47,9 +47,7 @@ void PathPrinter::key(const std::string& key)
 
 void PathPrinter::value(const std::string& value)
 {
-	pathConstructor.push(parser->getLastKey());
 	cout << pathConstructor.getPath() << "/" << parser->getLastKey() << ": " << value << endl;
-	pathConstructor.pop();
 }
 
 
