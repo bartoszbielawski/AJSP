@@ -7,8 +7,6 @@
 
 #include "PathListener.h"
 
-#include "Arduino.h"
-
 using namespace AJSP;
 
 PathListener::PathListener(Parser* p): Listener(p)

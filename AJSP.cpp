@@ -9,7 +9,13 @@
 
 #include <ctype.h>
 
+//#define USE_ARDUINO
+
+#ifdef USE_ARDUINO
 #include <Arduino.h>
+#else
+#include <unistd.h>
+#endif
 
 using namespace AJSP;
 using namespace std;
@@ -21,7 +27,7 @@ static std::string localToString(uint32_t v)
 	return std::string(buffer);
 }
 
-AJSP::Parser::Parser(): listener(nullptr), state(State::NONE), offset(0), lastKey("root")
+AJSP::Parser::Parser()
 {
 	stack.emplace(Entity::VALUE, State::NONE);
 	localBuffer.reserve(32);
@@ -34,11 +40,10 @@ void AJSP::Parser::setListener(Listener* l)
 
 void AJSP::Parser::reset()
 {
-	listener = nullptr;
-	state = State::NONE;
-	offset = 0;
 	localBuffer.clear();
 	lastKey = "root";
+	offset = 0;
+
 	stack.emplace(Entity::VALUE, State::NONE);
 }
 
@@ -49,15 +54,15 @@ bool AJSP::Parser::skipWhitespace(char c) const
 }
 
 
-void AJSP::Parser::parse(char c)
+bool AJSP::Parser::parse(char c)
 {
+	if (!c)
+		return true;
+
 	offset++;
 
-	if (!c)
-		return;
-
 	if (skipWhitespace(c))
-		return;
+		return false;
 
 	bool consumed = false;
 	int tries = 1;
@@ -83,10 +88,6 @@ void AJSP::Parser::parse(char c)
 			case Entity::STRING:
 			case Entity::KEY:
 				consumed = parseString(c);
-				if (!consumed)
-				{
-					reportErrorToParent();
-				}
 				break;
 
 			case Entity::RAW:
@@ -95,6 +96,11 @@ void AJSP::Parser::parse(char c)
 		}
 		if (consumed) tries--;
 	} while (tries && stack.size() > 0);
+
+	if (stack.empty() && listener)
+		listener->done();
+
+	return stack.empty();
 }
 
 
@@ -149,70 +155,72 @@ bool AJSP::Parser::parseString(char c)
 
 	switch (currentElement.state)
 	{
-	case State::STRING_START:
-		//we should skip 'u' that is at the beginning - u for unicode
-		if (c == 'u')
-			return true;
-		if ((c == '\"') or (c == '\''))
-		{
-			currentElement.state = State::STRING_BODY;	//we're in the string
-			localBuffer.clear();
-			//localBuffer += c;
-			return true;
-		}
-
-		reportErrorToParent();
-		return false;
-
-	case State::STRING_BODY:
-		if ((c == '\"') or (c == '\''))		//end of string
-		{
-			//localBuffer += c;
-
-			//NOTE: exit point
-			bool isKey = currentElement.entity == Entity::KEY;
-			if (listener)
+		case State::STRING_START:
+			//we should skip 'u' that is at the beginning - u for unicode
+			if (c == 'u')
+				return true;
+			if ((c == '\"') or (c == '\''))
 			{
+				currentElement.state = State::STRING_BODY;	//we're in the string
+				localBuffer.clear();
+				//localBuffer += c;
+				return true;
+			}
+
+			reportErrorToParent(ErrorCode::STRING_START_EXPECTED);
+			return false;
+
+		case State::STRING_BODY:
+			if ((c == '\"') or (c == '\''))		//end of string
+			{
+				//localBuffer += c;
+
+				//NOTE: exit point
+				bool isKey = currentElement.entity == Entity::KEY;
+
 				if (isKey)
-					listener->key(localBuffer);
+				{
+					if (listener) listener->key(localBuffer);
+					lastKey = localBuffer;
+				}
 				else
-					listener->value(localBuffer);
+				{
+					if (listener) listener->value(localBuffer);
+				}
+
+				stack.pop();
+				return true;
 			}
 
-			if (isKey)
+			if (c == '\\')
 			{
-				lastKey = localBuffer;
+				currentElement.state = State::STRING_ESCAPE;
+				return true;
 			}
 
-			stack.pop();
+			localBuffer += c;
 			return true;
-		}
 
-		if (c == '\\')
-		{
-			currentElement.state = State::STRING_ESCAPE;
+		case State::STRING_ESCAPE:
+			switch (c)
+			{
+				case 'n': localBuffer += '\n'; break;
+				case 'r': localBuffer += '\r'; break;
+				case 't': localBuffer += '\t'; break;
+				case '\\': localBuffer += '\\'; break;
+
+				default:
+					localBuffer += c;		//just put the raw value
+			}
+
+			currentElement.state = State::STRING_BODY;
 			return true;
-		}
 
-		localBuffer += c;
-		return true;
+		default:;
 
-	case State::STRING_ESCAPE:
-		switch (c)
-		{
-			case 'n': localBuffer += '\n'; break;
-			case 'r': localBuffer += '\r'; break;
-			case 't': localBuffer += '\t'; break;
-			case '\\': localBuffer += '\\'; break;
-
-			default:
-				localBuffer += c;		//just put the raw value
-		}
-
-		currentElement.state = State::STRING_BODY;
-		return true;
 	}
 
+	reportErrorToParent(ErrorCode::INVALID_INTERNAL_STATE);
 	return false;
 }
 
@@ -226,7 +234,7 @@ bool AJSP::Parser::parseArray(char c)
 	{
 		uint32_t newLastIndex = (uint32_t)currentElement.state;
 		newLastIndex++;
-		currentElement.state = (State) newLastIndex;
+		currentElement.state = (State)newLastIndex;
 		lastKey = localToString(newLastIndex);
 		stack.emplace(Entity::VALUE, State::NONE);
 		return true;
@@ -240,6 +248,9 @@ bool AJSP::Parser::parseArray(char c)
 		return true;
 	}
 
+	//this should not happen
+	//(all other values are handled by the item inside the array)
+	reportErrorToParent(ErrorCode::INVALID_INTERNAL_STATE);
 	return false;
 }
 
@@ -281,13 +292,13 @@ bool		AJSP::Parser::parseObject(char c)
 				stack.emplace(Entity::VALUE, State::NONE);
 				return true;
 			}
-			break;
 
-		case State::INVALID:
-			//FIXME: add the missing code for invalid state
-			break;
+			//no break;
+		case State::INVALID:		//no break;
+		default:;					//no break;
 	}
 
+	reportErrorToParent(ErrorCode::INVALID_CHARACTER);
 	return false;
 }
 
@@ -297,13 +308,24 @@ bool		AJSP::Parser::parseRaw(char c)
 	if (currentElement.entity != Entity::RAW)
 		return false;
 
+	/*
+	 * FIXME:
+	 * currently the code will accept any input that consists of these characters
+	 * it could be fixed to be able to invalid sequences:
+	 * -multiple dots
+	 * -multiple exponents
+	 * -+- signs not at the begining or not after e/E
+	 * -dot at the end
+	 * -... and probably many more
+	 */
+
 	if (isalnum(c) || c == '-' || c == '+' || c == '.')
 	{
 		localBuffer += c;
 		return true;
 	}
 
-	//TODO: what to do with values chars that are not consumed?
+	//if we already had something in the buffer then it's the end of the token
 	if (localBuffer.length() && listener)
 	{
 		//NOTE: exit point
@@ -314,38 +336,9 @@ bool		AJSP::Parser::parseRaw(char c)
 }
 
 
-std::string getSEString(const AJSP::Parser::StackElement& se)
+void AJSP::Parser::reportErrorToParent(ErrorCode ec)
 {
-//	stringstream ss;
-//	ss << "E: ";
-//
-//	switch (se.entity)
-//	{
-//		case AJSP::Parser::Entity::ARRAY: ss << "Array"; break;
-//		case AJSP::Parser::Entity::KEY:   ss << "Key"; break;
-//		case AJSP::Parser::Entity::OBJECT:ss << "Object"; break;
-//		case AJSP::Parser::Entity::STRING:ss << "String"; break;
-//		case AJSP::Parser::Entity::RAW:	  ss << "Raw"; break;
-//		case AJSP::Parser::Entity::VALUE: ss << "Value"; break;
-//	}
-//
-//	ss << " ";
-//
-//	ss << int(se.state);
-//
-//	return ss.str();
-}
-
-void  AJSP::Parser::printStack()
-{
-//	for (auto& a: stackVector)
-//	{
-//		cout << "\t" << getSEString(a) << endl;
-//	}
-}
-
-void AJSP::Parser::reportErrorToParent()
-{
+	errorCode = ec;
 	if (stack.size() == 0)
 		return;
 
@@ -353,7 +346,7 @@ void AJSP::Parser::reportErrorToParent()
 	stack.top().state = State::INVALID;
 }
 
-
+//not used yet
 void AJSP::Parser::unwindStack()
 {
 	while (!stack.empty()) stack.pop();

@@ -38,6 +38,11 @@ int main(int argc, char* argv[])
 		{
 			char c = ifs.get();
 			p.parse(c);
+			if (p.getErrorCode() != AJSP::Parser::ErrorCode::OK)
+			{
+				cerr << "#Error at offset " << p.getCurrentOffset() << endl;
+				break;
+			}
 		};
 
 		ifs.close();

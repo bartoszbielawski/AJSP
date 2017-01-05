@@ -5,18 +5,24 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
 ../AJSP.cpp \
+../PathConstructor.cpp \
+../PathListener.cpp \
 ../PathPrinter.cpp \
 ../Printer.cpp \
 ../main.cpp 
 
 OBJS += \
 ./AJSP.o \
+./PathConstructor.o \
+./PathListener.o \
 ./PathPrinter.o \
 ./Printer.o \
 ./main.o 
 
 CPP_DEPS += \
 ./AJSP.d \
+./PathConstructor.d \
+./PathListener.d \
 ./PathPrinter.d \
 ./Printer.d \
 ./main.d 
