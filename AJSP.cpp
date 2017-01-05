@@ -9,12 +9,17 @@
 
 #include <ctype.h>
 
-#include <iostream>
-#include <sstream>
-#include <unistd.h>
+#include <Arduino.h>
 
 using namespace AJSP;
 using namespace std;
+
+static std::string localToString(uint32_t v)
+{
+	char buffer[12];
+	snprintf(buffer, 12,  "%d", v);
+	return std::string(buffer);
+}
 
 AJSP::Parser::Parser(): listener(nullptr), state(State::NONE), offset(0), lastKey("root")
 {
@@ -222,7 +227,7 @@ bool AJSP::Parser::parseArray(char c)
 		uint32_t newLastIndex = (uint32_t)currentElement.state;
 		newLastIndex++;
 		currentElement.state = (State) newLastIndex;
-		lastKey = to_string(newLastIndex);
+		lastKey = localToString(newLastIndex);
 		stack.emplace(Entity::VALUE, State::NONE);
 		return true;
 	}
@@ -311,24 +316,24 @@ bool		AJSP::Parser::parseRaw(char c)
 
 std::string getSEString(const AJSP::Parser::StackElement& se)
 {
-	stringstream ss;
-	ss << "E: ";
-
-	switch (se.entity)
-	{
-		case AJSP::Parser::Entity::ARRAY: ss << "Array"; break;
-		case AJSP::Parser::Entity::KEY:   ss << "Key"; break;
-		case AJSP::Parser::Entity::OBJECT:ss << "Object"; break;
-		case AJSP::Parser::Entity::STRING:ss << "String"; break;
-		case AJSP::Parser::Entity::RAW:	  ss << "Raw"; break;
-		case AJSP::Parser::Entity::VALUE: ss << "Value"; break;
-	}
-
-	ss << " ";
-
-	ss << int(se.state);
-
-	return ss.str();
+//	stringstream ss;
+//	ss << "E: ";
+//
+//	switch (se.entity)
+//	{
+//		case AJSP::Parser::Entity::ARRAY: ss << "Array"; break;
+//		case AJSP::Parser::Entity::KEY:   ss << "Key"; break;
+//		case AJSP::Parser::Entity::OBJECT:ss << "Object"; break;
+//		case AJSP::Parser::Entity::STRING:ss << "String"; break;
+//		case AJSP::Parser::Entity::RAW:	  ss << "Raw"; break;
+//		case AJSP::Parser::Entity::VALUE: ss << "Value"; break;
+//	}
+//
+//	ss << " ";
+//
+//	ss << int(se.state);
+//
+//	return ss.str();
 }
 
 void  AJSP::Parser::printStack()

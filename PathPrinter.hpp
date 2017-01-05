@@ -9,6 +9,7 @@
 #define PATHPRINTER_HPP_
 
 #include "AJSP.hpp"
+#include "PathConstructor.h"
 
 class PathPrinter: public AJSP::Listener
 {
@@ -26,14 +27,10 @@ class PathPrinter: public AJSP::Listener
 		virtual void value(const std::string& value);
 
 		virtual void done();
-
-
 	private:
 		const std::string& getCurrentPath();
 
-		std::string bufferedCurrentPath;
-
-		std::vector<std::string> stack;
+		PathConstructor pathConstructor;
 };
 
 #endif /* PATHPRINTER_HPP_ */
