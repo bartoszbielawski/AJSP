@@ -12,54 +12,89 @@
 #include "Printer.hpp"
 #include "PathPrinter.hpp"
 
+#include <utility>
+
 using namespace std;
 using namespace AJSP;
 
-int main(int argc, char* argv[])
+
+struct Result
 {
-	if (argc < 2)
-		return 1;
+		Result(AJSP::Parser::Result result, uint32_t offset): result(result), offset(offset) {}
+		AJSP::Parser::Result result;
+		uint32_t offset;
 
-	try
-	{
-		Parser p;
-		PathPrinter pp(&p);
+		bool operator==(const Result& other) const
+		{
+			if (result == Parser::Result::OK and other.result == Parser::Result::OK)
+				return true;
 
-		p.setListener(&pp);
+			if (result != other.result)
+				return false;
 
-		std::ifstream ifs (argv[1], std::ifstream::in);
+			if (offset != other.offset)
+				return false;
+
+			return true;
+		}
+
+		bool operator!=(const Result& other) const {return !(*this == other);}
+
+		std::string toString() const
+		{
+			return string(Parser::getResultDescription(result)) + " @ " + to_string(offset);
+		}
+};
+
+
+Result parseFile(const std::string& filename)
+{
+		AJSP::Parser p;
+		std::ifstream ifs (filename, std::ifstream::in);
 
 		if (!ifs.good())
 		{
-			cerr << "#Error, failed to open file..." << endl;
-			return 2;
+			return Result(Parser::Result::INVALID_INTERNAL_STATE, 0xFFFFFFFF);
 		}
-
-		using Result = Parser::Result;
 
 		while (ifs.good())
 		{
-			char c = ifs.get();
-			auto r = p.parse(c);
-			if (r != Result::OK)
-			{
-				if (r == Result::DONE)
-					break;
-
-				cerr << "#Error: " << p.getResultDescription(r) << " at offset " << p.getCurrentOffset() << endl;
+			auto r = p.parse(ifs.get());
+			if (r == Parser::Result::DONE)
 				break;
+
+			if (r != Parser::Result::OK)
+			{
+				return Result(r, p.getCurrentOffset());
 			}
 		};
 
-
 		ifs.close();
+
+		return Result(Parser::Result::OK, 0);
 	}
-	catch(const std::exception& e)
+
+vector<pair<string, Result>> tests =
+{
+		{"jsonExamples/weatherExample.json", Result(Parser::Result::OK, 0)}
+};
+
+int main(int argc, char* argv[])
+{
+
+	for (const auto& p: tests)
 	{
-		cout << e.what() << endl;
+			auto r = parseFile(p.first);
+
+			cout << "Testing file: " << p.first << endl;
+			if (r != p.second)
+			{
+					cout << "Expected: " << p.second.toString() << endl;
+					cout << "Result:   " << r.toString() << endl;
+			}
+			else
+					cout << "OK" << endl;
 	}
 
 	return 0;
 }
-
-
