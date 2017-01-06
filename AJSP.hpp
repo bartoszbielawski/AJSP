@@ -15,106 +15,116 @@
 
 namespace AJSP
 {
-class Parser;
+	class Parser;
 
-class Listener
-{
-	public:
-		Listener(Parser* p): parser(p) {}
-		virtual ~Listener() {}
+	class Listener
+	{
+		public:
+			Listener(Parser* p): parser(p) {}
+			virtual ~Listener() {}
 
-		virtual void arrayStart() = 0;
-		virtual void arrayEnd() = 0;
+			virtual void arrayStart() = 0;
+			virtual void arrayEnd() = 0;
 
-		virtual void objectStart() = 0;
-		virtual void objectEnd() = 0;
+			virtual void objectStart() = 0;
+			virtual void objectEnd() = 0;
 
-		virtual void key(const std::string& key) = 0;
-		virtual void value(const std::string& value) = 0;
+			virtual void key(const std::string& key) = 0;
+			virtual void value(const std::string& value) = 0;
 
-		virtual void done() = 0;
-	protected:
-		Parser* parser;
-};
+			virtual void done() = 0;
+		protected:
+			Parser* parser;
+	};
 
-class Parser
-{
-	public:
-		Parser();
-		~Parser() {}
+	class Parser
+	{
+		public:
+			Parser();
+			~Parser() {}
 
-		void reset();
-		bool parse(char c);		//returns true when it's done
-		void setListener(Listener* l);
-		uint32_t getCurrentOffset() const {return offset;}
-		const std::string& getLastKey() const {return lastKey;}
+			void reset();
 
-		bool done() {return stack.empty();}
+			enum class Result: uint8_t
+			{
+					OK,
+					DONE,
+					INVALID_CHARACTER = 0x10,		//generic
+					IC_STRING_START_EXPECTED,
+					IC_ARRAY_COMMA_OR_END_EXPECTED,
+					IC_OBJECT_COLON_EXPECTED,
+					IC_OBJECT_KEY_OR_END_EXPECTED,
+					IC_OBJECT_SEPARATOR_OR_END_EXPECTED,
+					INVALID_INTERNAL_STATE = 0x80
+			};
 
-		enum class ErrorCode
-		{
-			OK,
-			STRING_START_EXPECTED,
-			INVALID_INTERNAL_STATE,
-			INVALID_CHARACTER
-		};
+			static const char* getResultDescription(Result r);
 
-		ErrorCode getErrorCode() const {return errorCode;}
+			Result parse(char c);		//returns true when it's done
+			void setListener(Listener* l);
+			uint32_t getCurrentOffset() const {return offset;}
+			const std::string& getLastKey() const {return lastKey;}
 
-	private:
-		enum class State: uint16_t
-		{
-			NONE = 0,		//for anything that doesn't need state
+			bool done() {return stack.empty();}
 
-			KV_OR_END,		//for objects with key-value paris
-			KV_K,
-			KV_S,
-			KV_V,
 
-			STRING_START,	//for strings and keys
-			STRING_BODY,
-			STRING_ESCAPE,
 
-			INVALID = 0xFFFF
-		};
+			Result getLastResult() const {return result;}
 
-		enum class Entity: uint16_t
-		{
-			OBJECT,
-			ARRAY,
-			KEY,
-			VALUE,
-			STRING,
-			RAW
-		};
+		private:
+			enum class State: uint16_t
+			{
+				NONE = 0,		//for anything that doesn't need state
 
-		struct StackElement
-		{
-			StackElement(Entity e, State s): entity(e), state(s) {}
-			Entity entity;
-			State state;
-		};
+				OBJECT_KEY_OR_END,		//
+				OBJECT_COLON,
+				OBJECT_SEPARATOR_OR_END,
 
-		bool 		skipWhitespace(char c) const;
+				STRING_START,	//for strings and keys
+				STRING_BODY,
+				STRING_ESCAPE,
 
-		bool 		parseValue(char c);
-		bool		parseString(char c);
-		bool		parseObject(char c);
-		bool		parseArray(char c);
-		bool		parseRaw(char c);
+				INVALID = 0xFFFF
+			};
 
-		void		unwindStack();
-		void		reportErrorToParent(ErrorCode ec);
+			enum class Entity: uint16_t
+			{
+				OBJECT,
+				ARRAY,
+				KEY,
+				VALUE,
+				STRING,
+				RAW
+			};
 
-		Listener* 	listener = nullptr;
+			struct StackElement
+			{
+					StackElement(Entity e, State s): entity(e), state(s) {}
+					Entity entity;
+					State state;
+			};
 
-		std::string localBuffer;
-		std::string lastKey = "root";
-		uint32_t	offset = 0;
-		ErrorCode   errorCode = ErrorCode::OK;
+			bool 		skipWhitespace(char c) const;
 
-		std::stack<StackElement, std::vector<StackElement>> stack;
-};
+			bool 		parseValue(char c);
+			bool		parseString(char c);
+			bool		parseObject(char c);
+			bool		parseArray(char c);
+			bool		parseRaw(char c);
+
+			bool 		checkRawChar(char c);
+
+			void		reportErrorToParent(Result ec);
+
+			Listener* 	listener = nullptr;
+
+			std::string localBuffer;
+			std::string lastKey = "root";
+			uint32_t	offset = 0;
+			Result   	result = Result::OK;
+
+			std::stack<StackElement, std::vector<StackElement>> stack;
+	};
 }
 
 

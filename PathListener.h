@@ -37,7 +37,7 @@ class PathListener: public AJSP::Listener {
 	private:
 		PathConstructor pathConstructor;
 		std::vector<const char*> _monitoredPaths;
-		Callback callback;
+		Callback callback = nullptr;
 };
 
 #endif /* PATHLISTENER_H_ */

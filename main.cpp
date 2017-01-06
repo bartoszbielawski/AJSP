@@ -13,6 +13,7 @@
 #include "PathPrinter.hpp"
 
 using namespace std;
+using namespace AJSP;
 
 int main(int argc, char* argv[])
 {
@@ -21,7 +22,7 @@ int main(int argc, char* argv[])
 
 	try
 	{
-		AJSP::Parser p;
+		Parser p;
 		PathPrinter pp(&p);
 
 		p.setListener(&pp);
@@ -34,16 +35,22 @@ int main(int argc, char* argv[])
 			return 2;
 		}
 
+		using Result = Parser::Result;
+
 		while (ifs.good())
 		{
 			char c = ifs.get();
-			p.parse(c);
-			if (p.getErrorCode() != AJSP::Parser::ErrorCode::OK)
+			auto r = p.parse(c);
+			if (r != Result::OK)
 			{
-				cerr << "#Error at offset " << p.getCurrentOffset() << endl;
+				if (r == Result::DONE)
+					break;
+
+				cerr << "#Error: " << p.getResultDescription(r) << " at offset " << p.getCurrentOffset() << endl;
 				break;
 			}
 		};
+
 
 		ifs.close();
 	}
