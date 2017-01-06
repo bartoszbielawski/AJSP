@@ -11,3 +11,6 @@ all: $(OBJS)
 
 clean:
 		rm $(TARGET) $(OBJS)
+
+run:
+		./$(TARGET)

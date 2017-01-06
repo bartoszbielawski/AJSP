@@ -14,13 +14,24 @@
 #ifdef USE_ARDUINO
 #include <Arduino.h>
 #else
+#include <map>
+#include <iostream>
 #include <unistd.h>
 #endif
 
-#include <iostream>
-
 using namespace AJSP;
 using namespace std;
+
+map<AJSP::Parser::Entity, std::string> AJSP::Parser::entityNames =
+{
+	{Parser::Entity::OBJECT, "Object"},
+	{Parser::Entity::ARRAY,  "Array"},
+	{Parser::Entity::VALUE,  "Value"},
+	{Parser::Entity::KEY,		 "Key"},
+	{Parser::Entity::STRING, "String"},
+	{Parser::Entity::RAW,	   "Raw"}
+};
+
 
 static std::string localToString(uint32_t v)
 {
@@ -61,17 +72,22 @@ AJSP::Parser::Result AJSP::Parser::parse(char c)
 	if (!c)
 		return Result::OK;
 
-	offset++;
-
 	if (skipWhitespace(c))
+	{
+		offset++;
 		return Result::OK;
+	}
 
 	bool consumed = false;
 
-
-	while ((not consumed) and (result == Result::OK))
+	while ((not consumed) and (result == Result::OK) and (not stack.empty()))
 	{
 		auto& currentElement = stack.top();
+
+		//cout << "*******************************" << endl;
+		//cout << "CH: " << c << endl;
+
+		printState("BEFORE");
 
 		switch (currentElement.entity)
 		{
@@ -96,12 +112,18 @@ AJSP::Parser::Result AJSP::Parser::parse(char c)
 				consumed = parseRaw(c);
 				break;
 		}
+
+		printState("AFTER");
 	};
 
-	if (stack.empty() && listener)
+	if (consumed)
+		offset++;
+
+	//TODO: fix the condition, check for the error code AND if the stack is empty
+	if (stack.empty() && result == Result::OK)
 	{
-		listener->done();
-		result = Result::DONE;
+		if (listener) listener->done();
+		return Result::DONE;
 	}
 
 	return result;
@@ -137,8 +159,7 @@ bool AJSP::Parser::parseValue(char c)
 		//to be restored when we pop
 		lastKey = "0";
 		currentElement = StackElement(Entity::ARRAY, (State)0);
-		stack.emplace(Entity::VALUE, State::NONE);
-		return true;
+  	return true;
 	}
 
 	if ((c == 'u') or (c == '\"') or (c == '\''))	//string
@@ -249,12 +270,21 @@ bool AJSP::Parser::parseArray(char c)
 		return false;
 	}
 
-	if (c == ',')
+	uint32_t currentIndex = (int)currentElement.state;
+
+	if (currentIndex == 0)
 	{
-		uint32_t newLastIndex = (uint32_t)currentElement.state;
-		newLastIndex++;
-		currentElement.state = (State)newLastIndex;
-		lastKey = localToString(newLastIndex);
+	  //try to create an element
+		currentElement.state = (State)1;
+		stack.emplace(Entity::VALUE, State::NONE);
+		bool consumed = parseValue(c);
+	  if (consumed) return true;
+	}
+
+	if (c == ',' and currentIndex != 0)
+	{
+		lastKey = localToString(currentIndex);
+		currentElement.state = (State)(currentIndex+1);
 		stack.emplace(Entity::VALUE, State::NONE);
 		return true;
 	}
@@ -268,7 +298,11 @@ bool AJSP::Parser::parseArray(char c)
 		return true;
 	}
 
-	reportErrorToParent(Result::IC_ARRAY_COMMA_OR_END_EXPECTED);
+	if (currentIndex == 0)
+	{
+		reportErrorToParent(Result::IC_ARRAY_VALUE_OR_END_EXPECTED);
+	}
+		else reportErrorToParent(Result::IC_ARRAY_COMMA_OR_END_EXPECTED);
 	return false;
 }
 
@@ -375,7 +409,6 @@ bool		AJSP::Parser::parseRaw(char c)
 	 * -multiple dots
 	 * -multiple exponents
 	 * -+- signs not at the beginning or not after e/E
-	 * -dot at the end
 	 * -... and probably many more
 	 *
 	 * And it doesn't support unicode escapes...
@@ -413,6 +446,8 @@ const char* AJSP::Parser::getResultDescription(Result r)
 			 return "String start expected";
 		 case Result::IC_ARRAY_COMMA_OR_END_EXPECTED:
 			 return "Array separator or end brace expected";
+			case Result::IC_ARRAY_VALUE_OR_END_EXPECTED:
+			 return "Value or end brace expected";
 		 case Result::IC_OBJECT_COLON_EXPECTED:
 			 return "Colon expected";
 		 case Result::IC_OBJECT_KEY_OR_END_EXPECTED:
@@ -424,6 +459,28 @@ const char* AJSP::Parser::getResultDescription(Result r)
 	 }
 
 	 return "Unknown";
+}
+
+void 	  AJSP::Parser::printState(const std::string& msg) const
+{
+	return;
+	cout << "=================  " << msg << "  ==============" << endl;
+	cout << "StackSize:   " << stack.size() << endl;
+	cout << "Top element: " << entityNames[stack.top().entity] << endl;
+	cout << "Offset:      " << offset << endl;
+	cout << "Result:      " << getResultDescription(result) << endl;
+	cout << "State:       " << int(result) << endl;
+}
+
+void AJSP::Parser::printStack() const
+{
+	auto stackCpy = stack;
+	auto mapCpy = entityNames;
+
+	while (!stackCpy.empty())
+	{
+		cout << mapCpy[stackCpy.top().entity] << endl;
+	}
 }
 
 void AJSP::Parser::reportErrorToParent(Result r)

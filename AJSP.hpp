@@ -13,6 +13,10 @@
 #include <utility>
 #include <vector>
 
+#ifndef ARDUINO
+#include <map>
+#endif
+
 namespace AJSP
 {
 	class Parser;
@@ -52,6 +56,7 @@ namespace AJSP
 					INVALID_CHARACTER = 0x10,		//generic
 					IC_STRING_START_EXPECTED,
 					IC_ARRAY_COMMA_OR_END_EXPECTED,
+					IC_ARRAY_VALUE_OR_END_EXPECTED,
 					IC_OBJECT_COLON_EXPECTED,
 					IC_OBJECT_KEY_OR_END_EXPECTED,
 					IC_OBJECT_SEPARATOR_OR_END_EXPECTED,
@@ -124,6 +129,12 @@ namespace AJSP
 			Result   	result = Result::OK;
 
 			std::stack<StackElement, std::vector<StackElement>> stack;
+
+#ifndef ARDUINO
+			void 	  printState(const std::string& msg) const;
+			void 		printStack() const;
+			static std::map<Entity, std::string> entityNames;
+#endif
 	};
 }
 

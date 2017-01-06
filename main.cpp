@@ -26,7 +26,7 @@ struct Result
 
 		bool operator==(const Result& other) const
 		{
-			if (result == Parser::Result::OK and other.result == Parser::Result::OK)
+			if (result == Parser::Result::DONE and other.result == Parser::Result::DONE)
 				return true;
 
 			if (result != other.result)
@@ -50,6 +50,10 @@ struct Result
 Result parseFile(const std::string& filename)
 {
 		AJSP::Parser p;
+		PathPrinter pp(&p);
+
+		p.setListener(&pp);
+
 		std::ifstream ifs (filename, std::ifstream::in);
 
 		if (!ifs.good())
@@ -60,13 +64,9 @@ Result parseFile(const std::string& filename)
 		while (ifs.good())
 		{
 			auto r = p.parse(ifs.get());
-			if (r == Parser::Result::DONE)
-				break;
-
 			if (r != Parser::Result::OK)
-			{
 				return Result(r, p.getCurrentOffset());
-			}
+
 		};
 
 		ifs.close();
@@ -76,7 +76,20 @@ Result parseFile(const std::string& filename)
 
 vector<pair<string, Result>> tests =
 {
-		{"jsonExamples/weatherExample.json", Result(Parser::Result::OK, 0)}
+    {"jsonExamples/weatherExample.json", Result(Parser::Result::DONE, 0)},
+
+		{"jsonExamples/emptyObject.json", Result(Parser::Result::DONE, 0)},
+		{"jsonExamples/objectJustKey.json", Result(Parser::Result::IC_OBJECT_COLON_EXPECTED, 10)},
+		{"jsonExamples/objectWrongClosing.json", Result(Parser::Result::IC_OBJECT_KEY_OR_END_EXPECTED, 1)},
+		{"jsonExamples/objectWithColon.json", Result(Parser::Result::IC_OBJECT_KEY_OR_END_EXPECTED, 1)},
+
+		{"jsonExamples/string.json", Result(Parser::Result::DONE, 0)},
+
+//array tests
+		{"jsonExamples/arrayNumericSimple.json", Result(Parser::Result::DONE, 0)},
+		{"jsonExamples/emptyArray.json", Result(Parser::Result::DONE, 0)},
+		{"jsonExamples/arrayWrongClosing.json", Result(Parser::Result::IC_ARRAY_VALUE_OR_END_EXPECTED, 1)},
+		{"jsonExamples/arrayLeadingComma.json", Result(Parser::Result::IC_ARRAY_VALUE_OR_END_EXPECTED, 1)},
 };
 
 int main(int argc, char* argv[])
@@ -86,6 +99,7 @@ int main(int argc, char* argv[])
 	{
 			auto r = parseFile(p.first);
 
+			cout << "-----------------------------------------------------" << endl;
 			cout << "Testing file: " << p.first << endl;
 			if (r != p.second)
 			{
