@@ -66,7 +66,6 @@ Result parseFile(const std::string& filename)
 			auto r = p.parse(ifs.get());
 			if (r != Parser::Result::OK)
 				return Result(r, p.getCurrentOffset());
-
 		};
 
 		ifs.close();
@@ -79,7 +78,7 @@ vector<pair<string, Result>> tests =
     {"jsonExamples/weatherExample.json", Result(Parser::Result::DONE, 0)},
 
 		{"jsonExamples/emptyObject.json", Result(Parser::Result::DONE, 0)},
-		{"jsonExamples/objectJustKey.json", Result(Parser::Result::IC_OBJECT_COLON_EXPECTED, 10)},
+		{"jsonExamples/objectJustKey.json", Result(Parser::Result::IC_OBJECT_VALUE_EXPECTED, 9)},
 		{"jsonExamples/objectWrongClosing.json", Result(Parser::Result::IC_OBJECT_KEY_OR_END_EXPECTED, 1)},
 		{"jsonExamples/objectWithColon.json", Result(Parser::Result::IC_OBJECT_KEY_OR_END_EXPECTED, 1)},
 

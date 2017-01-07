@@ -58,6 +58,7 @@ namespace AJSP
 					IC_ARRAY_COMMA_OR_END_EXPECTED,
 					IC_ARRAY_VALUE_OR_END_EXPECTED,
 					IC_OBJECT_COLON_EXPECTED,
+					IC_OBJECT_VALUE_EXPECTED,
 					IC_OBJECT_KEY_OR_END_EXPECTED,
 					IC_OBJECT_SEPARATOR_OR_END_EXPECTED,
 					INVALID_INTERNAL_STATE = 0x80
@@ -83,6 +84,7 @@ namespace AJSP
 
 				OBJECT_KEY_OR_END,		//
 				OBJECT_COLON,
+				OBJECT_VALUE,
 				OBJECT_SEPARATOR_OR_END,
 
 				STRING_START,	//for strings and keys
@@ -124,7 +126,10 @@ namespace AJSP
 			Listener* 	listener = nullptr;
 
 			std::string localBuffer;
-			std::string lastKey = "root";
+
+			constexpr static const char* rootElementName = "root";
+
+			std::string lastKey = rootElementName;
 			uint32_t	offset = 0;
 			Result   	result = Result::OK;
 

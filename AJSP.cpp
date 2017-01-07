@@ -54,7 +54,7 @@ void AJSP::Parser::setListener(Listener* l)
 void AJSP::Parser::reset()
 {
 	localBuffer.clear();
-	lastKey = "root";
+	lastKey = rootElementName;
 	offset = 0;
 
 	stack.emplace(Entity::VALUE, State::NONE);
@@ -349,16 +349,24 @@ bool		AJSP::Parser::parseObject(char c)
 			//here we only expect K and V separator
 			if (c == ':')
 			{
-				//we can get an end or another key next time
-				currentElement.state = State::OBJECT_SEPARATOR_OR_END;
-
-				//there will be a value following on the next level
-				stack.emplace(Entity::VALUE, State::NONE);
+				currentElement.state = State::OBJECT_VALUE;
 				return true;
 			}
 
 			reportErrorToParent(Result::IC_OBJECT_COLON_EXPECTED);
 			return false;
+
+		case State::OBJECT_VALUE:
+			stack.emplace(Entity::VALUE, State::NONE);
+			if (parseValue(c))
+			{
+					currentElement.state = State::OBJECT_SEPARATOR_OR_END;
+					return true;
+			}
+
+			reportErrorToParent(Result::IC_OBJECT_VALUE_EXPECTED);
+			return false;
+
 
 		case State::OBJECT_SEPARATOR_OR_END:
 			if (c == '}')
@@ -450,6 +458,8 @@ const char* AJSP::Parser::getResultDescription(Result r)
 			 return "Value or end brace expected";
 		 case Result::IC_OBJECT_COLON_EXPECTED:
 			 return "Colon expected";
+		 case Result::IC_OBJECT_VALUE_EXPECTED:
+		 	return "Value expected";
 		 case Result::IC_OBJECT_KEY_OR_END_EXPECTED:
 			 return "Key or end brace expected";
 		 case Result::IC_OBJECT_SEPARATOR_OR_END_EXPECTED:
