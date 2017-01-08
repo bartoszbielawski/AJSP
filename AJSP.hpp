@@ -57,6 +57,7 @@ namespace AJSP
 					IC_STRING_START_EXPECTED,
 					IC_ARRAY_COMMA_OR_END_EXPECTED,
 					IC_ARRAY_VALUE_OR_END_EXPECTED,
+					IC_ARRAY_VALUE_EXPECTED,
 					IC_OBJECT_COLON_EXPECTED,
 					IC_OBJECT_VALUE_EXPECTED,
 					IC_OBJECT_KEY_OR_END_EXPECTED,
@@ -78,7 +79,7 @@ namespace AJSP
 			Result getLastResult() const {return result;}
 
 		private:
-			enum class State: uint16_t
+	 		enum class State
 			{
 				NONE = 0,		//for anything that doesn't need state
 
@@ -86,6 +87,10 @@ namespace AJSP
 				OBJECT_COLON,
 				OBJECT_VALUE,
 				OBJECT_SEPARATOR_OR_END,
+
+				ARRAY_VALUE_OR_END,
+				ARRAY_SEPARATOR_OR_END,
+				ARRAY_VALUE,
 
 				STRING_START,	//for strings and keys
 				STRING_BODY,
@@ -139,6 +144,8 @@ namespace AJSP
 			void 	  printState(const std::string& msg) const;
 			void 		printStack() const;
 			static std::map<Entity, std::string> entityNames;
+
+			static const char* getStateDescription(State& s);
 #endif
 	};
 }

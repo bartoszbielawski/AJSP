@@ -56,7 +56,6 @@ void AJSP::Parser::reset()
 	localBuffer.clear();
 	lastKey = rootElementName;
 	offset = 0;
-
 	stack.emplace(Entity::VALUE, State::NONE);
 }
 
@@ -84,8 +83,8 @@ AJSP::Parser::Result AJSP::Parser::parse(char c)
 	{
 		auto& currentElement = stack.top();
 
-		//cout << "*******************************" << endl;
-		//cout << "CH: " << c << endl;
+		cout << "*******************************" << endl;
+		cout << "CH: " << c << endl;
 
 		printState("BEFORE");
 
@@ -158,15 +157,14 @@ bool AJSP::Parser::parseValue(char c)
 		//set the new lastIndex to 0, the previous one should be saved in ARRAY's state
 		//to be restored when we pop
 		lastKey = "0";
-		currentElement = StackElement(Entity::ARRAY, (State)0);
+		currentElement = StackElement(Entity::ARRAY, State::ARRAY_VALUE_OR_END);
   	return true;
 	}
 
 	if ((c == 'u') or (c == '\"') or (c == '\''))	//string
 	{
 		currentElement = StackElement(Entity::STRING, State::STRING_START);
-		parseString(c);
-		return true;
+		return parseString(c);
 	}
 
 	if (checkRawChar(c))
@@ -178,7 +176,6 @@ bool AJSP::Parser::parseValue(char c)
 	}
 
 	//failed to recognize character
-	//reportErrorToParent(Result::INVALID_CHARACTER);
 	stack.pop();
 	return false;
 }
@@ -253,8 +250,7 @@ bool AJSP::Parser::parseString(char c)
 			currentElement.state = State::STRING_BODY;
 			return true;
 
-				default:;
-
+		default:;
 	}
 
 	reportErrorToParent(Result::INVALID_INTERNAL_STATE);
@@ -264,46 +260,74 @@ bool AJSP::Parser::parseString(char c)
 bool AJSP::Parser::parseArray(char c)
 {
 	auto& currentElement = stack.top();
+
 	if (currentElement.entity != Entity::ARRAY)
 	{
 		reportErrorToParent(Result::INVALID_INTERNAL_STATE);
 		return false;
 	}
 
-	uint32_t currentIndex = (int)currentElement.state;
-
-	if (currentIndex == 0)
+  switch(currentElement.state)
 	{
-	  //try to create an element
-		currentElement.state = (State)1;
-		stack.emplace(Entity::VALUE, State::NONE);
-		bool consumed = parseValue(c);
-	  if (consumed) return true;
+		case State::ARRAY_VALUE_OR_END:
+			lastKey = "0";
+			if (c == ']')
+			{
+				//NOTE: exit point
+				if (listener)
+					listener->arrayEnd();
+				stack.pop();
+				return true;
+			}
+
+			{
+				stack.emplace(Entity::VALUE, State::NONE);
+				bool consumed = parseValue(c);
+				if (consumed)
+				{
+					currentElement.state = State::ARRAY_SEPARATOR_OR_END;
+					return true;
+				}
+			}
+
+			reportErrorToParent(Result::IC_ARRAY_VALUE_OR_END_EXPECTED);
+			return false;
+
+		case State::ARRAY_VALUE:
+			stack.emplace(Entity::VALUE, State::NONE);
+			if (parseValue(c))
+			{
+				currentElement.state = State::ARRAY_SEPARATOR_OR_END;
+				return true;
+			}
+
+			reportErrorToParent(Result::IC_ARRAY_VALUE_EXPECTED);
+			return false;
+
+		case State::ARRAY_SEPARATOR_OR_END:
+			if (c == ']')
+			{
+				//NOTE: exit point
+				if (listener)
+					listener->arrayEnd();
+				stack.pop();
+				return true;
+			}
+
+			if (c == ',')
+			{
+				currentElement.state = State::ARRAY_VALUE;
+				//TODO: increment index
+				return true;
+			}
+
+			reportErrorToParent(Result::IC_ARRAY_COMMA_OR_END_EXPECTED);
+			return false;
+		default:;
 	}
 
-	if (c == ',' and currentIndex != 0)
-	{
-		lastKey = localToString(currentIndex);
-		currentElement.state = (State)(currentIndex+1);
-		stack.emplace(Entity::VALUE, State::NONE);
-		return true;
-	}
-
-	if (c == ']')
-	{
-		//NOTE: exit point
-		if (listener)
-			listener->arrayEnd();
-		stack.pop();
-		return true;
-	}
-
-	if (currentIndex == 0)
-	{
-		reportErrorToParent(Result::IC_ARRAY_VALUE_OR_END_EXPECTED);
-	}
-		else reportErrorToParent(Result::IC_ARRAY_COMMA_OR_END_EXPECTED);
-	return false;
+	reportErrorToParent(Result::INVALID_INTERNAL_STATE);
+  return false;
 }
 
 
@@ -456,6 +480,8 @@ const char* AJSP::Parser::getResultDescription(Result r)
 			 return "Array separator or end brace expected";
 			case Result::IC_ARRAY_VALUE_OR_END_EXPECTED:
 			 return "Value or end brace expected";
+		 case Result::IC_ARRAY_VALUE_EXPECTED:
+		   return "Value expected";
 		 case Result::IC_OBJECT_COLON_EXPECTED:
 			 return "Colon expected";
 		 case Result::IC_OBJECT_VALUE_EXPECTED:
@@ -473,13 +499,13 @@ const char* AJSP::Parser::getResultDescription(Result r)
 
 void 	  AJSP::Parser::printState(const std::string& msg) const
 {
-	return;
 	cout << "=================  " << msg << "  ==============" << endl;
 	cout << "StackSize:   " << stack.size() << endl;
 	cout << "Top element: " << entityNames[stack.top().entity] << endl;
 	cout << "Offset:      " << offset << endl;
 	cout << "Result:      " << getResultDescription(result) << endl;
 	cout << "State:       " << int(result) << endl;
+	printStack();
 }
 
 void AJSP::Parser::printStack() const
@@ -489,8 +515,30 @@ void AJSP::Parser::printStack() const
 
 	while (!stackCpy.empty())
 	{
-		cout << mapCpy[stackCpy.top().entity] << endl;
+		cout << mapCpy[stackCpy.top().entity] << "\t\t, " << getStateDescription(stackCpy.top().state) << endl;
+		stackCpy.pop();
 	}
+}
+
+const char* AJSP::Parser::getStateDescription(State& s)
+{
+	switch(s)
+	{
+		case State::NONE: return "NONE";
+		case State::OBJECT_KEY_OR_END: return "OBJECT_KEY_OR_END";
+		case State::OBJECT_COLON: return "OBJECT_COLON";
+		case State::OBJECT_VALUE: return "OBJECT_VALUE";
+		case State::OBJECT_SEPARATOR_OR_END: return "OBJECT_SEPARATOR_OR_END";
+		case State::ARRAY_VALUE_OR_END: return "ARRAY_VALUE_OR_END";
+		case State::ARRAY_SEPARATOR_OR_END: return "ARRAY_SEPARATOR_OR_END";
+		case State::ARRAY_VALUE: return "ARRAY_VALUE";
+		case State::STRING_START: return "STRING_START";
+		case State::STRING_BODY: return "STRING_BODY";
+		case State::STRING_ESCAPE: return "STRING_ESCAPE";
+		case State::INVALID: return "INVALID";
+		default:;
+	}
+	return "Unknown";
 }
 
 void AJSP::Parser::reportErrorToParent(Result r)

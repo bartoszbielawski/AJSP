@@ -1,5 +1,5 @@
 OBJS=AJSP.o PathConstructor.o PathListener.o PathPrinter.o main.o
-CXXFLAGS=-O2 -Wall -pedantic -std=c++11
+CXXFLAGS=-O1 -g -Wall -pedantic -std=c++11
 TARGET=AJSP
 
 all: $(OBJS)

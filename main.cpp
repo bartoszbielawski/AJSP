@@ -75,20 +75,21 @@ Result parseFile(const std::string& filename)
 
 vector<pair<string, Result>> tests =
 {
-    {"jsonExamples/weatherExample.json", Result(Parser::Result::DONE, 0)},
-
-		{"jsonExamples/emptyObject.json", Result(Parser::Result::DONE, 0)},
-		{"jsonExamples/objectJustKey.json", Result(Parser::Result::IC_OBJECT_VALUE_EXPECTED, 9)},
-		{"jsonExamples/objectWrongClosing.json", Result(Parser::Result::IC_OBJECT_KEY_OR_END_EXPECTED, 1)},
-		{"jsonExamples/objectWithColon.json", Result(Parser::Result::IC_OBJECT_KEY_OR_END_EXPECTED, 1)},
-
-		{"jsonExamples/string.json", Result(Parser::Result::DONE, 0)},
+    // {"jsonExamples/weatherExample.json", Result(Parser::Result::DONE, 0)},
+		//
+		// {"jsonExamples/emptyObject.json", Result(Parser::Result::DONE, 0)},
+		// {"jsonExamples/objectJustKey.json", Result(Parser::Result::IC_OBJECT_VALUE_EXPECTED, 9)},
+		// {"jsonExamples/objectWrongClosing.json", Result(Parser::Result::IC_OBJECT_KEY_OR_END_EXPECTED, 1)},
+		// {"jsonExamples/objectWithColon.json", Result(Parser::Result::IC_OBJECT_KEY_OR_END_EXPECTED, 1)},
+		// {"jsonExamples/objectMissingColon.json", Result(Parser::Result::IC_OBJECT_COLON_EXPECTED, 7)},
+		// {"jsonExamples/string.json", Result(Parser::Result::DONE, 0)},
 
 //array tests
 		{"jsonExamples/arrayNumericSimple.json", Result(Parser::Result::DONE, 0)},
 		{"jsonExamples/emptyArray.json", Result(Parser::Result::DONE, 0)},
 		{"jsonExamples/arrayWrongClosing.json", Result(Parser::Result::IC_ARRAY_VALUE_OR_END_EXPECTED, 1)},
 		{"jsonExamples/arrayLeadingComma.json", Result(Parser::Result::IC_ARRAY_VALUE_OR_END_EXPECTED, 1)},
+		{"jsonExamples/arrayTrailingComma.json", Result(Parser::Result::IC_ARRAY_VALUE_OR_END_EXPECTED, 1)},
 };
 
 int main(int argc, char* argv[])
