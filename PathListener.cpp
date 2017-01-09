@@ -43,7 +43,7 @@ void PathListener::key(const std::string& key)
 
 }
 
-void PathListener::value(const std::string& value)
+void PathListener::value(const std::string& value, AJSP::Parser::Entity)
 {
 	pathConstructor.push(parser->getLastKey());
 	for (const char* p: _monitoredPaths)

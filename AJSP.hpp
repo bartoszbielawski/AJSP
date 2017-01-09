@@ -19,27 +19,7 @@
 
 namespace AJSP
 {
-	class Parser;
-
-	class Listener
-	{
-		public:
-			Listener(Parser* p): parser(p) {}
-			virtual ~Listener() {}
-
-			virtual void arrayStart() = 0;
-			virtual void arrayEnd() = 0;
-
-			virtual void objectStart() = 0;
-			virtual void objectEnd() = 0;
-
-			virtual void key(const std::string& key) = 0;
-			virtual void value(const std::string& value) = 0;
-
-			virtual void done() = 0;
-		protected:
-			Parser* parser;
-	};
+	class Listener;
 
 	class Parser
 	{
@@ -49,23 +29,7 @@ namespace AJSP
 
 			void reset();
 
-			enum class Result: uint8_t
-			{
-					OK,
-					DONE,
-					INVALID_CHARACTER = 0x10,		//generic
-					IC_STRING_START_EXPECTED,
-					IC_ARRAY_COMMA_OR_END_EXPECTED,
-					IC_ARRAY_VALUE_OR_END_EXPECTED,
-					IC_ARRAY_VALUE_EXPECTED,
-					IC_OBJECT_COLON_EXPECTED,
-					IC_OBJECT_VALUE_EXPECTED,
-					IC_OBJECT_KEY_OR_END_EXPECTED,
-					IC_OBJECT_SEPARATOR_OR_END_EXPECTED,
-					INVALID_INTERNAL_STATE = 0x80
-			};
-
-			static const char* getResultDescription(Result r);
+			enum class Result: uint8_t;
 
 			Result parse(char c);		//returns true when it's done
 			void setListener(Listener* l);
@@ -74,12 +38,37 @@ namespace AJSP
 
 			bool done() {return stack.empty();}
 
+			enum class Result: uint8_t
+			{
+				OK,
+				DONE,
+				INVALID_CHARACTER = 0x10,		//generic
+				IC_STRING_START_EXPECTED,
+				IC_ARRAY_COMMA_OR_END_EXPECTED,
+				IC_ARRAY_VALUE_OR_END_EXPECTED,
+				IC_ARRAY_VALUE_EXPECTED,
+				IC_OBJECT_COLON_EXPECTED,
+				IC_OBJECT_VALUE_EXPECTED,
+				IC_OBJECT_KEY_OR_END_EXPECTED,
+				IC_OBJECT_SEPARATOR_OR_END_EXPECTED,
+				INVALID_INTERNAL_STATE = 0x80
+			};
 
+			static const char* getResultDescription(Result r);
 
+			enum class Entity: uint8_t
+			{
+				VALUE,
+				OBJECT,
+				ARRAY,
+				STRING,
+				KEY,
+				RAW,
+			};
 			Result getLastResult() const {return result;}
 
 		private:
-	 		enum class State: uint8_t
+			enum class State: uint8_t
 			{
 				NONE = 0,		//for anything that doesn't need state
 
@@ -97,16 +86,6 @@ namespace AJSP
 				STRING_ESCAPE,
 
 				INVALID = 0xFF
-			};
-
-			enum class Entity: uint8_t
-			{
-				VALUE,
-				OBJECT,
-				ARRAY,
-				STRING,
-				KEY,
-				RAW,
 			};
 
 			struct StackElement
@@ -147,6 +126,28 @@ namespace AJSP
 			static const std::map<Entity, std::string> entityNames;
 #endif
 	};
+
+	class Listener
+	{
+		public:
+			Listener(Parser* p): parser(p) {}
+			virtual ~Listener() {}
+
+			virtual void arrayStart() = 0;
+			virtual void arrayEnd() = 0;
+
+			virtual void objectStart() = 0;
+			virtual void objectEnd() = 0;
+
+			virtual void key(const std::string& key) = 0;
+			virtual void value(const std::string& value, Parser::Entity entity) = 0;
+
+			virtual void done() = 0;
+		protected:
+			Parser* parser;
+	};
+
+
 }
 
 

@@ -214,7 +214,7 @@ bool AJSP::Parser::parseString(char c)
 				}
 				else
 				{
-					if (listener) listener->value(localBuffer);
+					if (listener) listener->value(localBuffer, Entity::STRING);
 				}
 
 				stack.pop_back();
@@ -422,7 +422,7 @@ bool		AJSP::Parser::parseRaw(char c)
 	if (localBuffer.length() && listener)
 	{
 		//NOTE: exit point
-		listener->value(localBuffer);
+		listener->value(localBuffer, Entity::RAW);
 		localBuffer.clear();
 	}
 

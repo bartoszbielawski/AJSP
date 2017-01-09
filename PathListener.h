@@ -27,7 +27,7 @@ class PathListener: public AJSP::Listener {
 		virtual void objectEnd();
 
 		virtual void key(const std::string& key);
-		virtual void value(const std::string& value);
+		virtual void value(const std::string& value, AJSP::Parser::Entity entity);
 
 		virtual void done();
 
