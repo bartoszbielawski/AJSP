@@ -93,8 +93,44 @@ vector<pair<string, Result>> tests =
 		{"jsonExamples/arrayTrailingComma.json", Result(Parser::Result::IC_ARRAY_VALUE_EXPECTED, 3)},
 };
 
+class PP: public PathPrinter
+{
+	public:
+		PP(AJSP::Parser* p): PathPrinter(p) {}
+		void done() {cntr++;}
+		uint32_t getCntr() const {return cntr;}
+	private:
+		uint32_t cntr = 0;
+};
+
+void test1()
+{
+	AJSP::Parser p;
+	PP pp(&p);
+	p.setListener(&pp);
+
+	cout << "Multiple object test..." << endl;
+
+	const char data[] = "{'test':'test'} ['test'] 'test'";
+
+	for (auto& c: data)
+	{
+		p.parse(c);
+	}
+
+	if (pp.getCntr() == 3)
+	{
+		cout << "OK" << endl;
+	}
+	else
+	{
+		cout << "Failed..." << endl;
+	}
+}
+
 int main(int argc, char* argv[])
 {
+	test1();
 
 	for (const auto& p: tests)
 	{

@@ -125,6 +125,7 @@ AJSP::Parser::Result AJSP::Parser::parse(char c)
 	if (stack.empty() && result == Result::OK)
 	{
 		if (listener) listener->done();
+		reset();
 		return Result::DONE;
 	}
 
@@ -493,4 +494,3 @@ const char* AJSP::Parser::getResultDescription(Result r)
 
 	return "Unknown";
 }
-
