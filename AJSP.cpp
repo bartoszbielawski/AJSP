@@ -6,7 +6,6 @@
  */
 
 #include "AJSP.hpp"
-
 #include <ctype.h>
 
 //#define USE_ARDUINO
@@ -14,7 +13,6 @@
 #ifdef USE_ARDUINO
 #include <Arduino.h>
 #else
-#include <map>
 #include <iostream>
 #include <unistd.h>
 #endif
@@ -22,27 +20,34 @@
 using namespace AJSP;
 using namespace std;
 
-map<AJSP::Parser::Entity, std::string> AJSP::Parser::entityNames =
+#ifndef USE_ARDUINO
+const map<AJSP::Parser::Entity, std::string> AJSP::Parser::entityNames =
 {
-	{Parser::Entity::OBJECT, "Object"},
-	{Parser::Entity::ARRAY,  "Array"},
-	{Parser::Entity::VALUE,  "Value"},
-	{Parser::Entity::KEY,		 "Key"},
-	{Parser::Entity::STRING, "String"},
-	{Parser::Entity::RAW,	   "Raw"}
+		{Parser::Entity::OBJECT, "Object"},
+		{Parser::Entity::ARRAY,  "Array"},
+		{Parser::Entity::VALUE,  "Value"},
+		{Parser::Entity::KEY,	 "Key"},
+		{Parser::Entity::STRING, "String"},
+		{Parser::Entity::RAW,	 "Raw"}
 };
+#endif
 
 
 static std::string localToString(uint32_t v)
 {
+#ifdef USE_ARDUINO
 	char buffer[12];
 	snprintf(buffer, 12,  "%d", v);
 	return std::string(buffer);
+#else
+	return to_string(v);
+#endif
 }
 
 AJSP::Parser::Parser()
 {
-	stack.emplace(Entity::VALUE, State::NONE);
+	stack.emplace_back(Entity::VALUE, State::NONE);
+	stack.reserve(6);
 	localBuffer.reserve(32);
 }
 
@@ -56,12 +61,12 @@ void AJSP::Parser::reset()
 	localBuffer.clear();
 	lastKey = rootElementName;
 	offset = 0;
-	stack.emplace(Entity::VALUE, State::NONE);
+	stack.emplace_back(Entity::VALUE, State::NONE);
 }
 
 bool AJSP::Parser::skipWhitespace(char c) const
 {
-	auto& currentElement = stack.top();
+	auto& currentElement = stack.back();
 	return isspace(c) && !(currentElement.entity == Entity::STRING && currentElement.state == State::STRING_BODY);
 }
 
@@ -81,14 +86,12 @@ AJSP::Parser::Result AJSP::Parser::parse(char c)
 
 	while ((not consumed) and (result == Result::OK) and (not stack.empty()))
 	{
-		auto& currentElement = stack.top();
+		//		cout << "*******************************" << endl;
+		//		cout << "CH: " << c << endl;
+		//
+		//		printState("BEFORE");
 
-		cout << "*******************************" << endl;
-		cout << "CH: " << c << endl;
-
-		printState("BEFORE");
-
-		switch (currentElement.entity)
+		switch (stack.back().entity)
 		{
 			case Entity::OBJECT:
 				consumed = parseObject(c);
@@ -112,7 +115,7 @@ AJSP::Parser::Result AJSP::Parser::parse(char c)
 				break;
 		}
 
-		printState("AFTER");
+		//printState("AFTER");
 	};
 
 	if (consumed)
@@ -132,11 +135,12 @@ AJSP::Parser::Result AJSP::Parser::parse(char c)
 //changes the VALUE entity from the top of the stack to the proper entity
 bool AJSP::Parser::parseValue(char c)
 {
-	auto& currentElement = stack.top();
+	//here we don't push anything on the stack to it's safe to take the reference here
+	auto& currentElement = stack.back();
 
 	if (currentElement.entity != Entity::VALUE)
 	{
-		reportErrorToParent(Result::INVALID_INTERNAL_STATE);
+		result = Result::INVALID_INTERNAL_STATE;
 		return false;
 	}
 
@@ -154,11 +158,8 @@ bool AJSP::Parser::parseValue(char c)
 		//NOTE: exit point
 		if (listener) listener->arrayStart();
 
-		//set the new lastIndex to 0, the previous one should be saved in ARRAY's state
-		//to be restored when we pop
-		lastKey = "0";
 		currentElement = StackElement(Entity::ARRAY, State::ARRAY_VALUE_OR_END);
-  	return true;
+		return true;
 	}
 
 	if ((c == 'u') or (c == '\"') or (c == '\''))	//string
@@ -176,19 +177,13 @@ bool AJSP::Parser::parseValue(char c)
 	}
 
 	//failed to recognize character
-	stack.pop();
+	stack.pop_back();
 	return false;
 }
 
 bool AJSP::Parser::parseString(char c)
 {
-	auto& currentElement = stack.top();
-
-	if (!(currentElement.entity == Entity::STRING or currentElement.entity == Entity::KEY))
-	{
-		reportErrorToParent(Result::INVALID_INTERNAL_STATE);
-		return false;
-	}
+	auto& currentElement = stack.back();	//no stack allocation
 
 	switch (currentElement.state)
 	{
@@ -203,7 +198,7 @@ bool AJSP::Parser::parseString(char c)
 				return true;
 			}
 
-			reportErrorToParent(Result::IC_STRING_START_EXPECTED);
+			result = Result::IC_STRING_START_EXPECTED;
 			return false;
 
 		case State::STRING_BODY:
@@ -222,7 +217,7 @@ bool AJSP::Parser::parseString(char c)
 					if (listener) listener->value(localBuffer);
 				}
 
-				stack.pop();
+				stack.pop_back();
 				return true;
 			}
 
@@ -250,24 +245,16 @@ bool AJSP::Parser::parseString(char c)
 			currentElement.state = State::STRING_BODY;
 			return true;
 
-		default:;
+				default:;
 	}
 
-	reportErrorToParent(Result::INVALID_INTERNAL_STATE);
+	result = Result::INVALID_INTERNAL_STATE;
 	return false;
 }
 
 bool AJSP::Parser::parseArray(char c)
 {
-	auto& currentElement = stack.top();
-
-	if (currentElement.entity != Entity::ARRAY)
-	{
-		reportErrorToParent(Result::INVALID_INTERNAL_STATE);
-		return false;
-	}
-
-  switch(currentElement.state)
+	switch(stack.back().state)
 	{
 		case State::ARRAY_VALUE_OR_END:
 			lastKey = "0";
@@ -276,32 +263,25 @@ bool AJSP::Parser::parseArray(char c)
 				//NOTE: exit point
 				if (listener)
 					listener->arrayEnd();
-				stack.pop();
+				stack.pop_back();
 				return true;
 			}
 
-			{
-				stack.emplace(Entity::VALUE, State::NONE);
-				bool consumed = parseValue(c);
-				if (consumed)
-				{
-					currentElement.state = State::ARRAY_SEPARATOR_OR_END;
-					return true;
-				}
-			}
+			stack.back().state = State::ARRAY_SEPARATOR_OR_END;
+			stack.emplace_back(Entity::VALUE, State::NONE);
+			if (parseValue(c))
+				return true;
 
-			reportErrorToParent(Result::IC_ARRAY_VALUE_OR_END_EXPECTED);
+			result = Result::IC_ARRAY_VALUE_OR_END_EXPECTED;
 			return false;
 
 		case State::ARRAY_VALUE:
-			stack.emplace(Entity::VALUE, State::NONE);
+			stack.back().state = State::ARRAY_SEPARATOR_OR_END;
+			stack.emplace_back(Entity::VALUE, State::NONE);
 			if (parseValue(c))
-			{
-				currentElement.state = State::ARRAY_SEPARATOR_OR_END;
 				return true;
-			}
 
-			reportErrorToParent(Result::IC_ARRAY_VALUE_EXPECTED);
+			result = Result::IC_ARRAY_VALUE_EXPECTED;
 			return false;
 
 		case State::ARRAY_SEPARATOR_OR_END:
@@ -310,37 +290,30 @@ bool AJSP::Parser::parseArray(char c)
 				//NOTE: exit point
 				if (listener)
 					listener->arrayEnd();
-				stack.pop();
+				stack.pop_back();
 				return true;
 			}
 
 			if (c == ',')
 			{
-				currentElement.state = State::ARRAY_VALUE;
-				//TODO: increment index
+				stack.back().state = State::ARRAY_VALUE;
+				lastKey = localToString(++stack.back().counter);
 				return true;
 			}
 
-			reportErrorToParent(Result::IC_ARRAY_COMMA_OR_END_EXPECTED);
+			result = Result::IC_ARRAY_COMMA_OR_END_EXPECTED;
 			return false;
 		default:;
 	}
 
-	reportErrorToParent(Result::INVALID_INTERNAL_STATE);
-  return false;
+	result = Result::INVALID_INTERNAL_STATE;
+	return false;
 }
 
 
 bool		AJSP::Parser::parseObject(char c)
 {
-	auto& currentElement = stack.top();
-	if (currentElement.entity != Entity::OBJECT)
-	{
-		reportErrorToParent(Result::INVALID_INTERNAL_STATE);
-		return false;
-	}
-
-	switch (currentElement.state)
+	switch (stack.back().state)
 	{
 		case State::OBJECT_KEY_OR_END:
 			if (c == '}')
@@ -349,22 +322,22 @@ bool		AJSP::Parser::parseObject(char c)
 				if (listener)
 					listener->objectEnd();
 
-				stack.pop();
+				stack.pop_back();
 				return true;
 			}
 
 			//the next thing we're expecting on this stack level
 			//is a colon (after the string is done)
-			currentElement.state = State::OBJECT_COLON;
+			stack.back().state = State::OBJECT_COLON;
 
 			//try parsing it as a string
 			{
-				stack.emplace(Entity::KEY, State::STRING_START);
+				stack.emplace_back(Entity::KEY, State::STRING_START);
 				bool consumed = parseString(c);
 
 				if (!consumed and result == Result::IC_STRING_START_EXPECTED)
 				{
-					reportErrorToParent(Result::IC_OBJECT_KEY_OR_END_EXPECTED);
+					result = Result::IC_OBJECT_KEY_OR_END_EXPECTED;
 				}
 				return consumed;
 			}
@@ -373,22 +346,22 @@ bool		AJSP::Parser::parseObject(char c)
 			//here we only expect K and V separator
 			if (c == ':')
 			{
-				currentElement.state = State::OBJECT_VALUE;
+				stack.back().state = State::OBJECT_VALUE;
 				return true;
 			}
 
-			reportErrorToParent(Result::IC_OBJECT_COLON_EXPECTED);
+			result = Result::IC_OBJECT_COLON_EXPECTED;
 			return false;
 
 		case State::OBJECT_VALUE:
-			stack.emplace(Entity::VALUE, State::NONE);
+			stack.back().state = State::OBJECT_SEPARATOR_OR_END;
+			stack.emplace_back(Entity::VALUE, State::NONE);
 			if (parseValue(c))
 			{
-					currentElement.state = State::OBJECT_SEPARATOR_OR_END;
-					return true;
+				return true;
 			}
 
-			reportErrorToParent(Result::IC_OBJECT_VALUE_EXPECTED);
+			result = Result::IC_OBJECT_VALUE_EXPECTED;
 			return false;
 
 
@@ -399,24 +372,24 @@ bool		AJSP::Parser::parseObject(char c)
 				if (listener)
 					listener->objectEnd();
 
-				stack.pop();
+				stack.pop_back();
 				return true;
 			}
 
 			if (c == ',')
 			{
-				currentElement.state = State::OBJECT_COLON;
-				stack.emplace(Entity::KEY, State::STRING_START);
+				stack.back().state = State::OBJECT_COLON;
+				stack.emplace_back(Entity::KEY, State::STRING_START);
 				return true;
 			}
 
-			reportErrorToParent(Result::IC_OBJECT_SEPARATOR_OR_END_EXPECTED);
+			result = Result::IC_OBJECT_SEPARATOR_OR_END_EXPECTED;
 			return false;
 
 		default:;
 	}
 
-	reportErrorToParent(Result::INVALID_CHARACTER);
+	result = Result::INVALID_CHARACTER;
 	return false;
 }
 
@@ -427,13 +400,6 @@ bool 		AJSP::Parser::checkRawChar(char c)
 
 bool		AJSP::Parser::parseRaw(char c)
 {
-	auto& currentElement = stack.top();
-	if (currentElement.entity != Entity::RAW)
-	{
-		reportErrorToParent(Result::INVALID_INTERNAL_STATE);
-		return false;
-	}
-
 	/*
 	 * FIXME:
 	 * currently the code will accept any input that consists of these characters
@@ -460,48 +426,17 @@ bool		AJSP::Parser::parseRaw(char c)
 		localBuffer.clear();
 	}
 
-	stack.pop();
+	stack.pop_back();
 	return false;
 }
 
-const char* AJSP::Parser::getResultDescription(Result r)
-{
-	 switch (r)
-	 {
-		 case Result::OK:
-			 return "OK";
-		 case Result::DONE:
-			 return "Done";
-		 case Result::INVALID_CHARACTER:
-			 return "Invalid character";
-		 case Result::IC_STRING_START_EXPECTED:
-			 return "String start expected";
-		 case Result::IC_ARRAY_COMMA_OR_END_EXPECTED:
-			 return "Array separator or end brace expected";
-			case Result::IC_ARRAY_VALUE_OR_END_EXPECTED:
-			 return "Value or end brace expected";
-		 case Result::IC_ARRAY_VALUE_EXPECTED:
-		   return "Value expected";
-		 case Result::IC_OBJECT_COLON_EXPECTED:
-			 return "Colon expected";
-		 case Result::IC_OBJECT_VALUE_EXPECTED:
-		 	return "Value expected";
-		 case Result::IC_OBJECT_KEY_OR_END_EXPECTED:
-			 return "Key or end brace expected";
-		 case Result::IC_OBJECT_SEPARATOR_OR_END_EXPECTED:
-			 return "Comma or end brace expected";
-		 case Result::INVALID_INTERNAL_STATE:
-			 return "Invalid internal state";
-	 }
 
-	 return "Unknown";
-}
-
+#ifndef USE_ARDUINO
 void 	  AJSP::Parser::printState(const std::string& msg) const
 {
 	cout << "=================  " << msg << "  ==============" << endl;
 	cout << "StackSize:   " << stack.size() << endl;
-	cout << "Top element: " << entityNames[stack.top().entity] << endl;
+	cout << "Top element: " << entityNames.at(stack.back().entity) << endl;
 	cout << "Offset:      " << offset << endl;
 	cout << "Result:      " << getResultDescription(result) << endl;
 	cout << "State:       " << int(result) << endl;
@@ -510,17 +445,14 @@ void 	  AJSP::Parser::printState(const std::string& msg) const
 
 void AJSP::Parser::printStack() const
 {
-	auto stackCpy = stack;
-	auto mapCpy = entityNames;
-
-	while (!stackCpy.empty())
+	for (const auto& se: stack)
 	{
-		cout << mapCpy[stackCpy.top().entity] << "\t\t, " << getStateDescription(stackCpy.top().state) << endl;
-		stackCpy.pop();
+		cout << entityNames.at(se.entity) << "\t\t, " << getStateDescription(se.state) << endl;
 	}
 }
+#endif
 
-const char* AJSP::Parser::getStateDescription(State& s)
+const char* AJSP::Parser::getStateDescription(State s)
 {
 	switch(s)
 	{
@@ -541,12 +473,24 @@ const char* AJSP::Parser::getStateDescription(State& s)
 	return "Unknown";
 }
 
-void AJSP::Parser::reportErrorToParent(Result r)
+const char* AJSP::Parser::getResultDescription(Result r)
 {
-	result = r;
-//	if (stack.size() == 0)
-//		return;
-//
-//	stack.pop();
-//	stack.top().state = State::INVALID;
+	switch (r)
+	{
+		case Result::OK: 	return "OK";
+		case Result::DONE: 	return "Done";
+		case Result::INVALID_CHARACTER: 			return "Invalid character";
+		case Result::IC_STRING_START_EXPECTED:		return "String start expected";
+		case Result::IC_ARRAY_COMMA_OR_END_EXPECTED:return "Array separator or end brace expected";
+		case Result::IC_ARRAY_VALUE_OR_END_EXPECTED:return "Value or end brace expected";
+		case Result::IC_ARRAY_VALUE_EXPECTED:		return "Value expected";
+		case Result::IC_OBJECT_COLON_EXPECTED:		return "Colon expected";
+		case Result::IC_OBJECT_VALUE_EXPECTED:		return "Value expected";
+		case Result::IC_OBJECT_KEY_OR_END_EXPECTED:	return "Key or end brace expected";
+		case Result::IC_OBJECT_SEPARATOR_OR_END_EXPECTED: 			return "Comma or end brace expected";
+		case Result::INVALID_INTERNAL_STATE:		return "Invalid internal state";
+	}
+
+	return "Unknown";
 }
+

@@ -12,6 +12,7 @@ CPP_SRCS += \
 ../main.cpp 
 
 O_SRCS += \
+../AJSP.o \
 ../PathConstructor.o \
 ../PathListener.o \
 ../PathPrinter.o \

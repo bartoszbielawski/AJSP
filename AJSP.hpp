@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-#ifndef ARDUINO
+#ifndef USE_ARDUINO
 #include <map>
 #endif
 
@@ -79,34 +79,34 @@ namespace AJSP
 			Result getLastResult() const {return result;}
 
 		private:
-	 		enum class State
+	 		enum class State: uint8_t
 			{
 				NONE = 0,		//for anything that doesn't need state
 
-				OBJECT_KEY_OR_END,		//
+				OBJECT_KEY_OR_END = 0x10,
 				OBJECT_COLON,
 				OBJECT_VALUE,
 				OBJECT_SEPARATOR_OR_END,
 
-				ARRAY_VALUE_OR_END,
+				ARRAY_VALUE_OR_END = 0x20,
 				ARRAY_SEPARATOR_OR_END,
 				ARRAY_VALUE,
 
-				STRING_START,	//for strings and keys
+				STRING_START = 0x30,	//for strings and keys
 				STRING_BODY,
 				STRING_ESCAPE,
 
-				INVALID = 0xFFFF
+				INVALID = 0xFF
 			};
 
-			enum class Entity: uint16_t
+			enum class Entity: uint8_t
 			{
+				VALUE,
 				OBJECT,
 				ARRAY,
-				KEY,
-				VALUE,
 				STRING,
-				RAW
+				KEY,
+				RAW,
 			};
 
 			struct StackElement
@@ -114,6 +114,7 @@ namespace AJSP
 					StackElement(Entity e, State s): entity(e), state(s) {}
 					Entity entity;
 					State state;
+					uint16_t counter = 0;
 			};
 
 			bool 		skipWhitespace(char c) const;
@@ -126,8 +127,6 @@ namespace AJSP
 
 			bool 		checkRawChar(char c);
 
-			void		reportErrorToParent(Result ec);
-
 			Listener* 	listener = nullptr;
 
 			std::string localBuffer;
@@ -138,14 +137,14 @@ namespace AJSP
 			uint32_t	offset = 0;
 			Result   	result = Result::OK;
 
-			std::stack<StackElement, std::vector<StackElement>> stack;
+			std::vector<StackElement> stack;
 
-#ifndef ARDUINO
+			static const char* getStateDescription(State s);
+
+#ifndef USE_ARDUINO
 			void 	  printState(const std::string& msg) const;
-			void 		printStack() const;
-			static std::map<Entity, std::string> entityNames;
-
-			static const char* getStateDescription(State& s);
+			void 	  printStack() const;
+			static const std::map<Entity, std::string> entityNames;
 #endif
 	};
 }
