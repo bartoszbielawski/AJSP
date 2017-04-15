@@ -9,7 +9,7 @@
 #define PATHLISTENER_H_
 
 #include "AJSP.hpp"
-#include "PathConstructor.h"
+#include "PathConstructor.hpp"
 
 class PathListener: public AJSP::Listener {
 	public:
@@ -38,6 +38,7 @@ class PathListener: public AJSP::Listener {
 		PathConstructor pathConstructor;
 		std::vector<const char*> _monitoredPaths;
 		Callback callback = nullptr;
+		AJSP::Parser* parser;
 };
 
 #endif /* PATHLISTENER_H_ */

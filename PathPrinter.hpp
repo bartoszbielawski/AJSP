@@ -9,27 +9,18 @@
 #define PATHPRINTER_HPP_
 
 #include "AJSP.hpp"
-#include "PathConstructor.h"
+#include "PathConstructor.hpp"
 
 class PathPrinter: public AJSP::Listener
 {
 	public:
-		PathPrinter(AJSP::Parser* p): AJSP::Listener(p) {}
+		PathPrinter(AJSP::Parser* p): parser(p) {}
 		virtual ~PathPrinter() {}
-
-		virtual void arrayStart();
-		virtual void arrayEnd();
-
-		virtual void objectStart();
-		virtual void objectEnd();
-
-		virtual void key(const std::string& key);
 		virtual void value(const std::string& value, AJSP::Parser::Entity entity);
 
-		virtual void done();
 	private:
 		const std::string& getCurrentPath();
-
+		AJSP::Parser*   parser;
 		PathConstructor pathConstructor;
 };
 

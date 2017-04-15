@@ -13,7 +13,7 @@
 class PrinterListener: public AJSP::Listener
 {
 	public:
-		PrinterListener(AJSP::Parser* p): AJSP::Listener(p) {}
+		PrinterListener(AJSP::Parser* p): parser(p) {}
 		virtual ~PrinterListener() {}
 
 		virtual void arrayStart();
@@ -29,6 +29,7 @@ class PrinterListener: public AJSP::Listener
 
 	private:
 		int indent = 1;
+		AJSP::Parser* parser;
 };
 
 

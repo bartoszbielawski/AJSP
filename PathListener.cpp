@@ -9,7 +9,7 @@
 
 using namespace AJSP;
 
-PathListener::PathListener(Parser* p): Listener(p)
+PathListener::PathListener(Parser* p): parser(p)
 {
 }
 

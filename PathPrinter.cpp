@@ -16,48 +16,15 @@ using namespace std;
 
 
 
-void PathPrinter::arrayStart()
-{
-	//cout << "AS" << stack.size() << endl;
-	pathConstructor.push(parser->getLastKey());
-}
-
-void PathPrinter::arrayEnd()
-{
-	//cout << "AE" << stack.size() << endl;
-	pathConstructor.pop();
-}
-
-void PathPrinter::objectStart()
-{
-	//cout << "OS" << stack.size() << endl;
-	pathConstructor.push(parser->getLastKey());
-}
-
-void PathPrinter::objectEnd()
-{
-	//cout << "OE" << stack.size() << endl;
-	pathConstructor.pop();
-}
-
-void PathPrinter::key(const std::string& key)
-{
-
-}
 
 void PathPrinter::value(const std::string& value, Parser::Entity)
 {
-	cout << pathConstructor.getPath() << "/" << parser->getLastKey() << ": " << value << endl;
+	cout << parser->getCurrentPath() << ": " << value << endl;
 }
 
 
 const std::string& PathPrinter::getCurrentPath()
 {
-	return pathConstructor.getPath();
+	return parser->getCurrentPath();
 }
 
-
-void PathPrinter::done()
-{
-
-}
