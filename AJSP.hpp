@@ -2,7 +2,8 @@
  * AJSP.hpp
  *
  *  Created on: Jan 2, 2017
- *      Author: bbielaws
+ *      Author: Bartosz Bielawski
+ *
  */
 
 #ifndef AJSP_HPP_
@@ -12,6 +13,8 @@
 #include <stack>
 #include <utility>
 #include <vector>
+
+#define USE_ARDUINO
 
 #ifndef USE_ARDUINO
 #include <map>
