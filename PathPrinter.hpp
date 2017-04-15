@@ -19,9 +19,7 @@ class PathPrinter: public AJSP::Listener
 		virtual void value(const std::string& value, AJSP::Parser::Entity entity);
 
 	private:
-		const std::string& getCurrentPath();
 		AJSP::Parser*   parser;
-		PathConstructor pathConstructor;
 };
 
 #endif /* PATHPRINTER_HPP_ */

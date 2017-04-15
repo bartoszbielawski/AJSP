@@ -9,57 +9,15 @@
 
 using namespace AJSP;
 
-PathListener::PathListener(Parser* p): parser(p)
-{
-}
-
-PathListener::~PathListener()
-{
-}
-
-
-void PathListener::arrayStart()
-{
-	pathConstructor.push(parser->getLastKey());
-}
-
-void PathListener::arrayEnd()
-{
-	pathConstructor.pop();
-}
-
-void PathListener::objectStart()
-{
-	pathConstructor.push(parser->getLastKey());
-}
-
-void PathListener::objectEnd()
-{
-	pathConstructor.pop();
-}
-
-void PathListener::key(const std::string& key)
-{
-
-}
 
 void PathListener::value(const std::string& value, AJSP::Parser::Entity)
 {
-	pathConstructor.push(parser->getLastKey());
+	const std::string& currentPath = parser->getCurrentPath();
 	for (const char* p: _monitoredPaths)
 	{
-		if (pathConstructor.getPath() == p)
-			callback(pathConstructor.getPath(), value);
+		
+		if (currentPath == p)
+			callback(currentPath, value);
 	}
-	pathConstructor.pop();
 }
 
-void PathListener::done()
-{
-
-}
-
-void PathListener::clear()
-{
-	pathConstructor.clear();
-}
