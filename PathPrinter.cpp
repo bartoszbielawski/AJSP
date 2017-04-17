@@ -23,8 +23,3 @@ void PathPrinter::value(const std::string& value, Parser::Entity)
 }
 
 
-const std::string& PathPrinter::getCurrentPath()
-{
-	return parser->getCurrentPath();
-}
-

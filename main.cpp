@@ -11,7 +11,7 @@
 #include "AJSP.hpp"
 #include "Printer.hpp"
 #include "PathPrinter.hpp"
-
+#include "VectorCollector.hpp"
 #include <utility>
 
 using namespace std;
@@ -46,6 +46,22 @@ struct Result
 		}
 };
 
+std::string loadFile(const std::string& filename)
+{
+	std::string result;
+	std::ifstream ifs (filename, std::ifstream::in);
+	if (!ifs.good())
+		return result;
+
+	result.reserve(4096);
+
+	while (ifs.good())
+	{
+		result += ifs.get();
+	}
+
+	return result;
+}
 
 Result parseFile(const std::string& filename)
 {
@@ -128,10 +144,31 @@ void test1()
 	}
 }
 
+void testVectorCollector()
+{
+	cout << "VectorCollector test..." << endl;
+	VectorCollector vc;
+	std::string json = loadFile("jsonExamples/weatherExample.json");
+
+	for (const auto& c: json)
+	{
+		vc.parse(c);
+	}
+
+	for (const auto& v: vc.getValues())
+	{
+		cout << v.key << ": " << v.value << endl;
+	}
+}
+
 int main(int argc, char* argv[])
 {
+	cout << "-----------------------------------------------------" << endl;
 	test1();
-
+	cout << "-----------------------------------------------------" << endl;
+	testVectorCollector();
+	cout << "-----------------------------------------------------" << endl;
+	
 	for (const auto& p: tests)
 	{
 		auto r = parseFile(p.first);
