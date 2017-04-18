@@ -2,7 +2,8 @@
 
 using namespace AJSP;
 
-VectorCollector::VectorCollector()
+VectorCollector::VectorCollector(Predicate pred):
+		_predicate(pred)
 {  
     _parser.setListener(this);
 }
@@ -19,7 +20,11 @@ void VectorCollector::reset()
      
 void VectorCollector::value(const std::string& value, Parser::Entity entity)
 {
-    _values.emplace_back(_parser.getCurrentPath(), value, entity);
+	const std::string& path = _parser.getCurrentPath();
+	if (!_predicate(path))
+		return;
+
+	_values.emplace_back(path, value, entity);
 }
 
     

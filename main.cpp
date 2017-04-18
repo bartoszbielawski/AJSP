@@ -12,6 +12,7 @@
 #include "Printer.hpp"
 #include "PathPrinter.hpp"
 #include "VectorCollector.hpp"
+#include "MapCollector.hpp"
 #include <utility>
 
 using namespace std;
@@ -146,8 +147,11 @@ void test1()
 
 void testVectorCollector()
 {
+
+	auto l = [](const std::string& s){return s.find("/root/main/") != std::string::npos;};
+
 	cout << "VectorCollector test..." << endl;
-	VectorCollector vc;
+	VectorCollector vc(l);
 	std::string json = loadFile("jsonExamples/weatherExample.json");
 
 	for (const auto& c: json)
@@ -161,6 +165,26 @@ void testVectorCollector()
 	}
 }
 
+void testMapCollector()
+{
+
+	auto l = [](const std::string& s){return s.find("/root/main/") != std::string::npos;};
+
+	cout << "MapCollector test..." << endl;
+	MapCollector mc(l);
+	std::string json = loadFile("jsonExamples/weatherExample.json");
+
+	for (const auto& c: json)
+	{
+		mc.parse(c);
+	}
+
+	for (const auto& v: mc.getValues())
+	{
+		cout << v.first << ": " << v.second << endl;
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	cout << "-----------------------------------------------------" << endl;
@@ -168,7 +192,9 @@ int main(int argc, char* argv[])
 	cout << "-----------------------------------------------------" << endl;
 	testVectorCollector();
 	cout << "-----------------------------------------------------" << endl;
-	
+	testMapCollector();
+	cout << "-----------------------------------------------------" << endl;
+
 	for (const auto& p: tests)
 	{
 		auto r = parseFile(p.first);

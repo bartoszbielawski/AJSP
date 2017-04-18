@@ -1,6 +1,9 @@
+#ifndef VECTORCOLLECTOR_HPP
+#define VECTORCOLLECTOR_HPP
+
 #include "AJSP.hpp"
 #include "PathConstructor.hpp"
-
+#include <functional>
 
 struct KeyValueType
 {
@@ -12,10 +15,18 @@ struct KeyValueType
     AJSP::Parser::Entity entity;
 };
 
+template <class T>
+bool True(const T& t)
+{
+	return true;
+}
+
 class VectorCollector: private AJSP::Listener
 {
     public:
-        VectorCollector();
+		using Predicate = std::function<bool(const std::string& path)>;
+
+        VectorCollector(Predicate p = True<std::string>);
         ~VectorCollector();
 
         void reset();
@@ -29,4 +40,7 @@ class VectorCollector: private AJSP::Listener
 
         AJSP::Parser                _parser;
         std::vector<KeyValueType>   _values;
+        Predicate					_predicate;
 };
+
+#endif //VECTORCOLLECTOR_HPP
