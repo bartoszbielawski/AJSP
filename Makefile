@@ -1,4 +1,4 @@
-OBJS=AJSP.o PathConstructor.o PathListener.o PathPrinter.o VectorCollector.o main.o
+OBJS=AJSP.o PathConstructor.o PathListener.o PathPrinter.o VectorCollector.o MapCollector.o main.o
 CXXFLAGS=-O0 -g -Wall -pedantic -std=c++11
 TARGET=AJSP
 
