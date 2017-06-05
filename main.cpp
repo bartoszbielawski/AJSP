@@ -5,6 +5,8 @@
  *      Author: bbielaws
  */
 
+#ifdef AJSP_TESTS
+
 #include <fstream>
 #include <iostream>
 
@@ -168,7 +170,7 @@ void testVectorCollector()
 void testMapCollector()
 {
 
-	auto l = [](const std::string& s){return s.find("/root/main/") != std::string::npos;};
+	auto l = [](const std::string& s, const std::string& v){return s.find("/root/main/") != std::string::npos;};
 
 	cout << "MapCollector test..." << endl;
 	MapCollector mc(l);
@@ -177,6 +179,11 @@ void testMapCollector()
 	for (const auto& c: json)
 	{
 		mc.parse(c);
+	}
+
+	for (const auto& c: json)
+	{
+	    mc.parse(c);
 	}
 
 	for (const auto& v: mc.getValues())
@@ -212,3 +219,5 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+
+#endif
