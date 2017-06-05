@@ -2,7 +2,7 @@
  * PathConstructor.h
  *
  *  Created on: 04.01.2017
- *      Author: caladan
+ *      Author: Bartosz Bielawski
  */
 
 #ifndef PATHCONSTRUCTOR_H_

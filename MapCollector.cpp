@@ -1,3 +1,10 @@
+/*
+ * MapCollector.cpp
+ *
+ *  Created on: 18.04.2017
+ *      Author: Bartosz Bielawski
+ */
+
 #include "MapCollector.hpp"
 
 using namespace AJSP;

@@ -2,7 +2,7 @@
  * PathConstructor.cpp
  *
  *  Created on: 04.01.2017
- *      Author: caladan
+ *      Author: Bartosz Bielawski
  */
 
 #include "PathConstructor.hpp"
