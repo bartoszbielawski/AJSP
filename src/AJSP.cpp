@@ -7,13 +7,7 @@
 
 #include "AJSP.hpp"
 #include <ctype.h>
-
-#ifdef USE_ARDUINO
 #include <Arduino.h>
-#else
-#include <iostream>
-#include <unistd.h>
-#endif
 
 using namespace AJSP;
 using namespace std;
@@ -33,13 +27,9 @@ const map<AJSP::Parser::Entity, std::string> AJSP::Parser::entityNames =
 
 static std::string localToString(uint32_t v)
 {
-#ifdef USE_ARDUINO
 	char buffer[12];
 	snprintf(buffer, 12,  "%d", v);
 	return std::string(buffer);
-#else
-	return to_string(v);
-#endif
 }
 
 AJSP::Parser::Parser()
