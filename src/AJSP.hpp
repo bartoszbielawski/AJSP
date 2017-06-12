@@ -16,9 +16,11 @@
 
 #include "PathConstructor.hpp"
 
-//#define USE_ARDUINO
+//this define will make the library use more memory and use some standard
+//features available on PCs (like stdio...)
+//#define USE_PC
 
-#ifndef USE_ARDUINO
+#ifdef USE_PC
 #include <map>
 #endif
 
@@ -59,9 +61,9 @@ namespace AJSP
 				IC_OBJECT_SEPARATOR_OR_END_EXPECTED,
 				INVALID_INTERNAL_STATE = 0x80
 			};
-
+#ifdef USE_PC
 			static const char* getResultDescription(Result r);
-
+#endif
 			enum class Entity: uint8_t
 			{
 				VALUE,
@@ -126,9 +128,9 @@ namespace AJSP
 
 			std::vector<StackElement> stack;
 
+#ifdef USE_PC
 			static const char* getStateDescription(State s);
 
-#ifndef USE_ARDUINO
 			void 	  printState(const std::string& msg) const;
 			void 	  printStack() const;
 			static const std::map<Entity, std::string> entityNames;

@@ -12,7 +12,7 @@
 using namespace AJSP;
 using namespace std;
 
-#ifndef USE_ARDUINO
+#ifdef USE_PC
 const map<AJSP::Parser::Entity, std::string> AJSP::Parser::entityNames =
 {
 		{Parser::Entity::OBJECT, "Object"},
@@ -435,7 +435,7 @@ bool		AJSP::Parser::parseRaw(char c)
 }
 
 
-#ifndef USE_ARDUINO
+#ifdef USE_PC
 void 	  AJSP::Parser::printState(const std::string& msg) const
 {
 	cout << "=================  " << msg << "  ==============" << endl;
@@ -454,7 +454,6 @@ void AJSP::Parser::printStack() const
 		cout << entityNames.at(se.entity) << "\t\t, " << getStateDescription(se.state) << endl;
 	}
 }
-#endif
 
 const char* AJSP::Parser::getStateDescription(State s)
 {
@@ -497,3 +496,4 @@ const char* AJSP::Parser::getResultDescription(Result r)
 
 	return "Unknown";
 }
+#endif		//USE_PC
